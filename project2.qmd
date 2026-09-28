@@ -1,0 +1,310 @@
+
+title: "Project 2: Zero-Emissions Vehicles in California"
+name: "Heejun Jeon"
+
+# Part 1
+
+
+
+I explored the California Energy Commission's dashboard on new zero-emission vehicle sales in California.
+
+Here are three questions I was curious about:
+
+1. Which ZEV model had the most sales in California during the first half of 2026?
+2. Do some counties have unusually high sales shares for particular vehicle makes?
+3. Was there a rise in ZEV sales before the federal incentive ended in Q3 2025, followed by a drop in Q4?
+
+For the rest of Part 4, I chose to investigate the first question.
+
+The most commonly recorded ZEV model in 2026 year-to-date was the "Tesla Model Y", with 53,682 vehicles. It was followed by the Tesla Model 3 with 17,827 vehicles and the Hyundai IONIQ 5 with 7,421 vehicles.
+
+
+
+
+
+
+# Part 2
+
+I used the `readxl` package to read the County sheet from the Excel file.
+
+```{r}
+library(readxl)
+library(dplyr)
+
+zev <- read_excel(
+  "New_ZEV_Sales_Last_updated_07-17-2026_ada.xlsx",
+  sheet = "County"
+)
+```
+
+
+
+
+
+
+# Part 3
+
+## 1. Cumulative light-duty ZEV sales through 2026
+
+I calculated the cumulative number of light-duty ZEV sales by summing the `Number of Vehicles` column.
+
+```{r}
+zev |>
+  summarize(
+    cumulative_sales = sum(`Number of Vehicles`, na.rm = TRUE)
+  )
+
+# ans 2,702,646
+
+```
+
+The result is 2,702,646 vehicles, which is a result that matches the cumulative sales number shown on the dashboard.
+
+
+
+
+
+
+
+
+
+
+## 2. Year-to-date 2026 total sales
+
+I filtered the data to 2026 and summed the number of vehicles.
+
+```{r}
+zev |>
+  filter(`Data Year` == 2026) |>
+  summarize(
+    ytd_sales = sum(`Number of Vehicles`, na.rm = TRUE)
+  )
+
+# ans 151,525
+
+```
+
+The 2026 YTD total is "151,525 vehicles". This matches the annual sales number shown on the dashboard.
+
+
+
+
+
+
+
+
+## 3. Alameda County 2026 YTD sales
+
+I used Alameda County because it is the county specified in the assignment for students who are not from California.
+
+```{r}
+zev |>
+  filter(
+    `Data Year` == 2026,
+    COUNTY == "Alameda"
+  ) |>
+  summarize(
+    ytd_sales = sum(`Number of Vehicles`, na.rm = TRUE)
+  )
+
+# ans 8754
+
+```
+
+Alameda County had "8,754 ZEV sales" in 2026 YTD.
+
+
+## 4. 2026 sales by BEV, PHEV, and FCEV
+
+I grouped the 2026 sales by fuel type.
+
+
+```{r}
+zev |>
+  filter(`Data Year` == 2026) |>
+  group_by(FUEL_TYPE) |>
+  summarize(
+    sales = sum(`Number of Vehicles`, na.rm = TRUE)
+  )
+```
+
+The 2026 YTD sales were "132,453 BEVs, 18,901 PHEVs, and 171 FCEVs".
+
+
+
+## 5. 2026 YTD ZEV Share
+
+The dashboard reports a 17.5% YTD ZEV Share. 
+
+I cannot recreate this statistic from the County sheet alone because the County sheet contains ZEV sales but does not contain the total number of light-duty vehicle sales needed for the denominator. 
+
+The dashboard reports 865,303 total light-duty sales. 
+
+Using the dashboard's numbers: 151,525 / 865,303 = 17.5% T
+herefore, the dashboard's 17.5% value is consistent with the 2026 ZEV sales total, but I cannot independently calculate the denominator from the provided County data.
+
+
+## 6. 2026 Tesla sales by model
+
+I filtered the data to Tesla and 2026, then grouped the results by model.
+
+```{r}
+tesla_2026 <- zev |>
+  filter(
+    `Data Year` == 2026,
+    MAKE == "Tesla"
+  ) |>
+  group_by(MODEL) |>
+  summarize(
+    sales = sum(`Number of Vehicles`, na.rm = TRUE)
+  ) |>
+  arrange(desc(sales))
+
+tesla_2026
+```
+
+The Tesla Model Y had the most recorded sales in 2026 YTD, with 3,682 vehicles.
+
+
+## 7. 2026 sales by make and model
+
+I grouped the 2026 data first by make and then by model.
+
+```{r}
+make_model_2026 <- zev |>
+  filter(`Data Year` == 2026) |>
+  group_by(MAKE, MODEL) |>
+  summarize(
+    sales = sum(`Number of Vehicles`, na.rm = TRUE)
+  ) |>
+  arrange(MAKE, desc(sales))
+
+make_model_2026
+```
+
+```{r}
+write.csv(
+  make_model_2026,
+  "2026_make_model_counts.csv",
+  row.names = FALSE
+)
+```
+
+This produces the requested table of 2026 ZEV sales, separated first by make and then by model.
+
+
+# Part 4: Beyond the Dashboard
+
+I selected questions B, C, and E.
+
+## B. Tax Credit Effect
+
+The federal incentive ended on September 30, 2025. I compared ZEV sales in Q3 and Q4 of 2025 to see whether there was an increase before the incentive ended followed by a decrease afterward.
+
+```{r}
+zev |>
+  filter(`Data Year` == 2025) |>
+  group_by(Quarter) |>
+  summarize(
+    sales = sum(`Number of Vehicles`, na.rm = TRUE)
+  ) |>
+  arrange(Quarter)
+```
+
+```{r}
+zev |>
+  filter(
+    `Data Year` == 2025,
+    Quarter %in% c(3, 4)
+  ) |>
+  group_by(FUEL_TYPE, Quarter) |>
+  summarize(
+    sales = sum(`Number of Vehicles`, na.rm = TRUE)
+  ) |>
+  arrange(FUEL_TYPE, Quarter)
+```
+
+Total ZEV sales increased from 127,089 in Q3 to 79,066 in Q4, a decrease of 37.8%.
+
+BEV sales decreased by 36.3%, while PHEV sales decreased by 48.3%.
+
+The strongest reason this analysis could be misleading is that a one-quarter comparison cannot separate the effect of the federal incentive from seasonality, vehicle availability, new model releases, or DMV registration delays.
+
+
+## C. Market Concentration
+
+I calculated the Herfindahl-Hirschman Index (HHI) across makes for each year.
+
+```{r}
+hhi_by_year <- zev |>
+  group_by(`Data Year`, MAKE) |>
+  summarize(
+    sales = sum(`Number of Vehicles`, na.rm = TRUE)
+  ) |>
+  group_by(`Data Year`) |>
+  mutate(
+    share = sales / sum(sales)
+  ) |>
+  summarize(
+    HHI = sum(share^2) * 10000
+  )
+
+hhi_by_year
+```
+
+The HHI generally decreased from 2020 to 2025, suggesting that the ZEV market became less concentrated across makes. The HHI increased in 2026 YTD, but 2026 only includes the first half of the year.
+
+The strongest reason this analysis could be misleading is that HHI only describes the distribution of sales across makes and does not explain why the distribution changed. The 2026 value is also based on partial-year data.
+
+## E. The Elon Effect
+
+I compared Tesla's share of ZEV sales in the Democratic-leaning and Republican-leaning counties provided in the assignment.
+
+```{r}
+
+dem_counties <- c(
+  "Alameda", "San Francisco", "Santa Clara", "Marin",
+  "San Mateo", "Los Angeles", "Santa Cruz", "Humboldt"
+)
+
+rep_counties <- c(
+  "Kern", "Shasta", "Modoc", "Lassen",
+  "Tehama", "Kings", "Placer", "El Dorado"
+)
+```
+
+```{r}
+elon_analysis <- zev |>
+  filter(
+    `Data Year` %in% c(2023, 2024, 2025),
+    COUNTY %in% c(dem_counties, rep_counties)
+  ) |>
+  mutate(
+    county_group = ifelse(
+      COUNTY %in% dem_counties,
+      "Democratic-leaning",
+      "Republican-leaning"
+    )
+  ) |>
+  group_by(`Data Year`, county_group) |>
+  summarize(
+    tesla_sales = sum(
+      `Number of Vehicles`[MAKE == "Tesla"],
+      na.rm = TRUE
+    ),
+    total_zev_sales = sum(
+      `Number of Vehicles`,
+      na.rm = TRUE
+    )
+  ) |>
+  mutate(
+    tesla_share = tesla_sales / total_zev_sales
+  )
+
+elon_analysis
+```
+
+Tesla's share decreased in both groups from 2023 to 2025. The decrease was 8.9 percentage points in the Democratic-leaning counties and 7.6 percentage points in the Republican-leaning counties.
+
+The strongest reason this analysis could be misleading is that the two groups of counties differ in many other ways, such as income, charging access, vehicle availability, and previous Tesla adoption. Tesla's share was also already changing before 2025, so this analysis cannot establish that Elon Musk's involvement with DOGE caused the difference.
+
